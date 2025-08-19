@@ -20,3 +20,8 @@ app.use('/api', FormularioDotacion);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
+
+// Endpoint para verificar que el servidor está corriendo
+app.get('/', (req, res) => {
+  res.send('Backend funcionando');
+});

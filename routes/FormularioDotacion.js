@@ -1,5 +1,5 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocument,confirmarDotacion } from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion } from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 

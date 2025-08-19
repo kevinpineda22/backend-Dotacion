@@ -1,5 +1,5 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion } from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion} from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 
@@ -12,6 +12,6 @@ router.get('/dotaciones', obtenerDotaciones);
 router.get('/dotacion/:documento', obtenerDotacionPorDocumento);
 
 // Ruta para confirmar entrega de dotación con firma
-router.post('/dotacion/confirmar', confirmarDotacion);
+router.post('/dotacion/confirmada', confirmarDotacion);
 
 export default router;

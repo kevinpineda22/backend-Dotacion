@@ -8,37 +8,54 @@ export const confirmarDotacion = async (req, res) => {
   try {
     const { dotacionId, firma } = req.body;
 
-    // Validar campos requeridos
     if (!dotacionId || !firma) {
       return res.status(400).json({
         error: 'El dotacionId y la firma son obligatorios',
       });
     }
 
-    // Generar un nombre único para la imagen
-    const fileName = `firma_${dotacionId}_${Date.now()}.png`;
+    console.log('dotacionId recibido:', dotacionId);
 
-    // Convertir la firma base64 a un buffer
+    const fileName = `firma_${dotacionId}_${Date.now()}.png`;
     const base64Data = firma.replace(/^data:image\/png;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
-    // Subir la imagen a Supabase Storage
     const { data: storageData, error: storageError } = await supabase.storage
-      .from('firmas') // Nombre del bucket, créalo en Supabase si no existe
+      .from('firmas')
       .upload(fileName, buffer, {
         contentType: 'image/png',
       });
 
     if (storageError) {
+      console.error('Error en almacenamiento:', storageError);
       throw new Error(storageError.message);
     }
 
-    // Obtener la URL pública de la imagen
     const { publicUrl } = supabase.storage
       .from('firmas')
       .getPublicUrl(fileName);
 
-    // Actualizar el registro en Supabase con la URL de la firma
+    console.log('URL pública de la firma:', publicUrl);
+
+    // Verificar si el registro existe
+    const { data: checkData, error: checkError } = await supabase
+      .from('dotaciones')
+      .select('id')
+      .eq('id', dotacionId);
+
+    if (checkError) {
+      console.error('Error al verificar el registro:', checkError);
+      throw new Error(checkError.message);
+    }
+    if (!checkData || checkData.length === 0) {
+      console.log('No se encontró el registro con id:', dotacionId);
+      return res.status(404).json({
+        error: 'No se encontró la dotación con el ID proporcionado',
+      });
+    }
+
+    console.log('Registro encontrado:', checkData);
+
     const { data, error } = await supabase
       .from('dotaciones')
       .update({ firma: publicUrl })
@@ -46,13 +63,8 @@ export const confirmarDotacion = async (req, res) => {
       .select();
 
     if (error) {
+      console.error('Error en la actualización:', error);
       throw new Error(error.message);
-    }
-
-    if (!data || data.length === 0) {
-      return res.status(404).json({
-        error: 'No se encontró la dotación con el ID proporcionado',
-      });
     }
 
     res.status(200).json({

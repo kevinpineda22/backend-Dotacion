@@ -150,6 +150,7 @@ export const crearDotacion = async (req, res) => {
       'fechaEntrega',
       'dotacionTipo',
       'dotacion',
+
     ];
 
     for (const field of requiredFields) {
@@ -174,6 +175,8 @@ export const crearDotacion = async (req, res) => {
           fecha_entrega: formData.fechaEntrega,
           dotacion_tipo: formData.dotacionTipo,
           dotacion: formData.dotacion,
+          proxima_entrega: formData.proxima_entrega,
+
         },
       ])
       .select();

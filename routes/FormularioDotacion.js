@@ -14,4 +14,7 @@ router.get('/dotacion/:documento', obtenerDotacionPorDocumento);
 // Ruta para confirmar entrega de dotación con firma
 router.post('/dotacion/confirmada', confirmarDotacion);
 
+// Ruta para actualizar una dotación por ID
+router.put('/dotaciones/:id', actualizarDotacion); // Actulizar tallas y unidades de la dotación
+
 export default router;  

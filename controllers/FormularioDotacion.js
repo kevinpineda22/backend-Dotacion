@@ -265,3 +265,51 @@ export const obtenerDotacionPorDocumento = async (req, res) => {
     });
   }
 };
+
+// Actulizar tallas y unidades de la dotación
+export const actualizarDotacion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dotacion } = req.body;
+
+    // Validar que el id y el campo dotacion estén presentes
+    if (!id) {
+      return res.status(400).json({
+        error: 'El ID de la dotación es obligatorio',
+      });
+    }
+    if (!dotacion) {
+      return res.status(400).json({
+        error: 'El campo dotacion es obligatorio',
+      });
+    }
+
+    // Actualizar la dotación en Supabase
+    const { data, error } = await supabase
+      .from('dotaciones')
+      .update({ dotacion })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        error: 'Dotación no encontrada',
+      });
+    }
+
+    res.status(200).json({
+      message: 'Dotación actualizada con éxito',
+      data: data[0],
+    });
+  } catch (error) {
+    console.error('Error al actualizar la dotación:', error);
+    res.status(500).json({
+      error: 'Error al actualizar la dotación',
+      details: error.message,
+    });
+  }
+};

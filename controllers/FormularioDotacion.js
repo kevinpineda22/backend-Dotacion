@@ -203,6 +203,7 @@ export const crearDotacion = async (req, res) => {
   }
 };
 
+// Endpoint para obtener todas las dotaciones
 export const obtenerDotaciones = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -269,32 +270,51 @@ export const obtenerDotacionPorDocumento = async (req, res) => {
     });
   }
 };
+
+
+// Endpoint para actualizar la dotación
 export const actualizarDotacion = async (req, res) => {
   try {
     const { id } = req.params;
+    const { dotacion, entregas, fecha_entrega, proxima_entrega } = req.body;
 
-    const { dotacion } = req.body; // Validar que el id y el campo dotacion estén presentes
-
+    // Validar que el id esté presente
     if (!id) {
       return res.status(400).json({
         error: "El ID de la dotación es obligatorio",
       });
     }
 
-    if (!dotacion) {
+    // Validar que al menos un campo a actualizar esté presente
+    if (!dotacion && !entregas && !fecha_entrega && !proxima_entrega) {
       return res.status(400).json({
-        error: "El campo dotacion es obligatorio",
+        error: "Debe proporcionarse al menos un campo para actualizar (dotacion, entregas, fecha_entrega, proxima_entrega)",
       });
-    } // Actualizar la dotación en Supabase
+    }
 
+    // Construir el objeto de actualización dinámicamente
+    const updateData = {};
+    if (dotacion) updateData.dotacion = dotacion;
+    if (entregas) updateData.entregas = entregas;
+    if (fecha_entrega) updateData.fecha_entrega = fecha_entrega;
+    if (proxima_entrega) updateData.proxima_entrega = proxima_entrega;
+
+    // Validar fechas si están presentes
+    if (fecha_entrega && proxima_entrega) {
+      const entregaDate = new Date(fecha_entrega);
+      const proximaDate = new Date(proxima_entrega);
+      if (proximaDate <= entregaDate) {
+        return res.status(400).json({
+          error: "La próxima entrega debe ser posterior a la fecha de entrega",
+        });
+      }
+    }
+
+    // Actualizar en Supabase
     const { data, error } = await supabase
-
       .from("dotaciones")
-
-      .update({ dotacion })
-
+      .update(updateData)
       .eq("id", id)
-
       .select();
 
     if (error) {
@@ -309,15 +329,12 @@ export const actualizarDotacion = async (req, res) => {
 
     res.status(200).json({
       message: "Dotación actualizada con éxito",
-
       data: data[0],
     });
   } catch (error) {
     console.error("Error al actualizar la dotación:", error);
-
     res.status(500).json({
       error: "Error al actualizar la dotación",
-
       details: error.message,
     });
   }

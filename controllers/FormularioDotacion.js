@@ -3,6 +3,24 @@ import supabase from "../supabase/cliente.js";
 // Inicializar Supabase
 
 // Helpers
+
+// --- Helper robusto para normalizar la columna 'entregas' ---
+// Acepta array, string JSON, null/undefined y cualquier cosa rara.
+// Devuelve siempre un Array seguro.
+function ensureArrayEntregas(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw == null) return [];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 const genId = () => {
   try { return crypto.randomUUID(); } catch (_) {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -437,7 +455,8 @@ export const appendEntrega = async (req, res) => {
   }
 };
 
-// Endpoint para actualizar una entrega específica dentro de una dotación
+
+// PUT /api/dotaciones/:id/entregas/:entregaId
 export const updateEntrega = async (req, res) => {
   try {
     const { id, entregaId } = req.params;
@@ -450,7 +469,7 @@ export const updateEntrega = async (req, res) => {
       return res.status(400).json({ error: 'items es obligatorio y debe ser un objeto.' });
     }
 
-    // 1) Traer fila actual
+    // 1) Leer fila actual
     const { data: rows, error: selErr } = await supabase
       .from('dotaciones')
       .select('entregas')
@@ -462,10 +481,10 @@ export const updateEntrega = async (req, res) => {
       return res.status(404).json({ error: 'Dotación no encontrada' });
     }
 
-    // 2) Normalizar entregas actuales
+    // 2) Entregas normalizadas (por si la columna es TEXT y viene string JSON)
     const actual = ensureArrayEntregas(rows[0].entregas);
 
-    // 3) Localizar y reemplazar SOLO esa entrega
+    // 3) Buscar la entrega por ID y reemplazar SOLO esa
     const idx = actual.findIndex(e => e && e.id === entregaId);
     if (idx === -1) {
       return res.status(404).json({ error: 'Entrega no encontrada en el historial' });
@@ -480,7 +499,7 @@ export const updateEntrega = async (req, res) => {
 
     const nuevas = actual.slice(0, idx).concat(entregaActualizada, actual.slice(idx + 1));
 
-    // 4) Guardar array completo (NO sustituir por [])
+    // 4) Guardar el array completo de entregas actualizado
     const { data: upd, error: updErr } = await supabase
       .from('dotaciones')
       .update({ entregas: nuevas })
@@ -495,4 +514,3 @@ export const updateEntrega = async (req, res) => {
     return res.status(500).json({ error: 'Error al actualizar la entrega', details: err.message });
   }
 };
-

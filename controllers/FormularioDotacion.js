@@ -339,45 +339,51 @@ export const obtenerDotacionPorDocumento = async (req, res) => {
 export const actualizarDotacion = async (req, res) => {
   try {
     const { id } = req.params;
-    const { dotacion, entregas, fecha_entrega, proxima_entrega, mode, entregaId } = req.body;
+    let { dotacion, entregas, fecha_entrega, proxima_entrega, allowEmptyEntregas } = req.body || {};
 
-    if (!id) return res.status(400).json({ error: "El ID de la dotación es obligatorio" });
-    if (!dotacion && !entregas && !fecha_entrega && !proxima_entrega && !mode) {
-      return res.status(400).json({ error: "Debe enviar algún campo para actualizar" });
-    }
+    if (!id) return res.status(400).json({ error: 'El ID de la dotación es obligatorio' });
 
-    // Si viene mode, hacemos merge server-side para no pisar historial:
-    if (mode === 'appendEntrega') {
-      req.body.entrega = entregas; // entregas=una entrega suelta
-      return appendEntrega(req, res);
-    }
-    if (mode === 'updateEntregaById') {
-      req.params.entregaId = entregaId;
-      return updateEntrega(req, res);
-    }
-
-    // Modo reemplazo total (legacy): ¡PELIGROSO si no controlas concurrencia!
+    // Construir updateData con cuidado
     const updateData = {};
     if (dotacion) updateData.dotacion = dotacion;
-    if (entregas) updateData.entregas = Array.isArray(entregas) ? entregas.map(e => ({ ...e, items: normalizeItems(e.items) })) : entregas;
     if (fecha_entrega) updateData.fecha_entrega = fecha_entrega;
     if (proxima_entrega) updateData.proxima_entrega = proxima_entrega;
 
+    // Solo sustituir entregas si:
+    // - Es un array Y (tiene elementos o explícitamente permiten vacío)
+    if (Array.isArray(entregas)) {
+      if (entregas.length > 0 || allowEmptyEntregas === true) {
+        updateData.entregas = entregas;
+      } // si viene [], lo ignoramos por defecto
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Nada para actualizar' });
+    }
+
+    // Validación fechas
+    if (updateData.fecha_entrega && updateData.proxima_entrega) {
+      const d1 = new Date(updateData.fecha_entrega);
+      const d2 = new Date(updateData.proxima_entrega);
+      if (d2 <= d1) return res.status(400).json({ error: 'La próxima entrega debe ser posterior a la fecha de entrega' });
+    }
+
     const { data, error } = await supabase
-      .from("dotaciones")
+      .from('dotaciones')
       .update(updateData)
-      .eq("id", id)
+      .eq('id', id)
       .select();
 
     if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return res.status(404).json({ error: "Dotación no encontrada" });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Dotación no encontrada' });
 
-    res.status(200).json({ message: "Dotación actualizada con éxito", data: data[0] });
+    res.status(200).json({ message: 'Dotación actualizada con éxito', data: data[0] });
   } catch (error) {
-    console.error("Error al actualizar la dotación:", error);
-    res.status(500).json({ error: "Error al actualizar la dotación", details: error.message });
+    console.error('Error al actualizar la dotación:', error);
+    res.status(500).json({ error: 'Error al actualizar la dotación', details: error.message });
   }
 };
+
 
 
 // Endpoint para agregar una nueva entrega de dotación
@@ -435,43 +441,58 @@ export const appendEntrega = async (req, res) => {
 export const updateEntrega = async (req, res) => {
   try {
     const { id, entregaId } = req.params;
-    const { items, observacion, fecha } = req.body;
+    const { items, observacion } = req.body || {};
 
     if (!id || !entregaId) {
-      return res.status(400).json({ error: "id y entregaId son obligatorios" });
+      return res.status(400).json({ error: 'Faltan parámetros (id o entregaId).' });
+    }
+    if (!items || typeof items !== 'object') {
+      return res.status(400).json({ error: 'items es obligatorio y debe ser un objeto.' });
     }
 
-    const { data: row, error: selErr } = await supabase
-      .from("dotaciones")
-      .select("entregas")
-      .eq("id", id)
-      .single();
+    // 1) Traer fila actual
+    const { data: rows, error: selErr } = await supabase
+      .from('dotaciones')
+      .select('entregas')
+      .eq('id', id)
+      .limit(1);
 
     if (selErr) throw new Error(selErr.message);
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Dotación no encontrada' });
+    }
 
-    const actuales = Array.isArray(row?.entregas) ? row.entregas : [];
-    const nuevas = actuales.map(e => {
-      if (e.id !== entregaId) return e;
-      return {
-        ...e,
-        items: items ? normalizeItems(items) : e.items,
-        observacion: typeof observacion === "string" ? observacion : e.observacion,
-        fecha: fecha || e.fecha,
-      };
-    });
+    // 2) Normalizar entregas actuales
+    const actual = ensureArrayEntregas(rows[0].entregas);
 
-    const { data, error } = await supabase
-      .from("dotaciones")
+    // 3) Localizar y reemplazar SOLO esa entrega
+    const idx = actual.findIndex(e => e && e.id === entregaId);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Entrega no encontrada en el historial' });
+    }
+
+    const entregaOriginal = actual[idx];
+    const entregaActualizada = {
+      ...entregaOriginal,
+      items,
+      ...(typeof observacion === 'string' ? { observacion } : {}),
+    };
+
+    const nuevas = actual.slice(0, idx).concat(entregaActualizada, actual.slice(idx + 1));
+
+    // 4) Guardar array completo (NO sustituir por [])
+    const { data: upd, error: updErr } = await supabase
+      .from('dotaciones')
       .update({ entregas: nuevas })
-      .eq("id", id)
-      .select()
-      .single();
+      .eq('id', id)
+      .select();
 
-    if (error) throw new Error(error.message);
-    res.json({ message: "Entrega actualizada", data });
-  } catch (error) {
-    console.error("updateEntrega error:", error);
-    res.status(500).json({ error: "No se pudo actualizar la entrega", details: error.message });
+    if (updErr) throw new Error(updErr.message);
+
+    return res.status(200).json({ message: 'Entrega actualizada', data: upd[0] });
+  } catch (err) {
+    console.error('updateEntrega error:', err);
+    return res.status(500).json({ error: 'Error al actualizar la entrega', details: err.message });
   }
 };
 

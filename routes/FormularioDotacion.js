@@ -1,20 +1,29 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion} from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega} from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 
-// Ruta para crear una nueva dotación
+// ---- CREACIÓN (incluye entrega inicial) ----
 router.post('/dotacion', crearDotacion);
+
+// ---- LECTURAS ----
 // Ruta para obtener todas las dotaciones
 router.get('/dotaciones', obtenerDotaciones);
-
 // Ruta para obtener una dotación por número de cédula
 router.get('/dotacion/:documento', obtenerDotacionPorDocumento);
 
-// Ruta para confirmar entrega de dotación con firma
-router.post('/dotacion/confirmada', confirmarDotacion);
-
+// ---- ACTUALIZACIÓN GENÉRICA (opcional) ----
+// Soporta mode: 'appendEntrega' y 'updateEntregaById' en el body (según la versión que te pasé)
 // Ruta para actualizar una dotación por ID
 router.put('/dotaciones/:id', actualizarDotacion); // Actulizar tallas y unidades de la dotación
+
+// ---- HISTORIAL: APPEND y UPDATE POR ENTREGA ----
+router.post('/dotaciones/:id/entregas', appendEntrega);
+router.put('/dotaciones/:id/entregas/:entregaId', updateEntrega);
+
+// ---- CONFIRMAR DOTACIÓN (firma) ----
+router.post('/dotaciones/confirmar', confirmarDotacion);
+
+
 
 export default router;  

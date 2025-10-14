@@ -122,13 +122,25 @@ export const confirmarDotacion = async (req, res) => {
 // Endpoint para subir factura o comprobante de compra de bono de calzado
 export const subirFactura = async (req, res) => {
   try {
-    const file = req.files?.factura;
+    // Si usas express-fileupload, el archivo está en req.files.factura
+    // Si usas multer, el archivo está en req.file
+    let file;
+    if (req.files && req.files.factura) {
+      file = req.files.factura;
+    } else if (req.file) {
+      file = req.file;
+    }
     if (!file) return res.status(400).json({ error: "No se adjuntó la factura" });
 
-    const fileName = `factura_${Date.now()}_${file.name}`;
+    // Para express-fileupload: file.data
+    // Para multer: file.buffer
+    const fileData = file.data || file.buffer;
+    const fileName = `factura_${Date.now()}_${file.name || file.originalname}`;
+    const contentType = file.mimetype || 'image/jpeg';
+
     const { data: storageData, error: storageError } = await supabase.storage
       .from("facturas")
-      .upload(fileName, file.data, { contentType: file.mimetype });
+      .upload(fileName, fileData, { contentType });
 
     if (storageError) {
       return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
@@ -144,6 +156,7 @@ export const subirFactura = async (req, res) => {
     return res.status(500).json({ error: "Error al subir la factura", details: error.message });
   }
 };
+// ...existing code...
 
 export const crearDotacion = async (req, res) => {
   try {

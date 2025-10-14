@@ -1,5 +1,5 @@
 import supabase from "../supabase/cliente.js";
-import axios from 'axios';
+
 
 
 // Inicializar Supabase

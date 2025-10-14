@@ -1,7 +1,8 @@
 import supabase from "../supabase/cliente.js";
+import axios from 'axios';
+
 
 // Inicializar Supabase
-
 // Helpers
 
 // --- Helper robusto para normalizar la columna 'entregas' ---
@@ -217,6 +218,8 @@ export const crearDotacion = async (req, res) => {
       "Servicio Generales": "servicioGenerales",
       "Lider Punto": "liderPunto",
       "Administrativos": "administrativos",
+      "Cajera": "cajera",
+      "Monitor de Servicio": "monitorServicio",
     };
     const categoriaKey = dotacionTipoMap[formData.dotacionTipo] || formData.dotacionTipo;
     const catObj = formData.dotacion?.[categoriaKey] || {};
@@ -512,5 +515,81 @@ export const updateEntrega = async (req, res) => {
   } catch (err) {
     console.error('updateEntrega error:', err);
     return res.status(500).json({ error: 'Error al actualizar la entrega', details: err.message });
+  }
+};
+export const ejecutarConsulta = async (req, res) => {
+  console.log('=== Controlador ejecutarConsulta invocado (ruta: /api/conexion) ===');
+  try {
+    console.log('=== Iniciando ejecutarConsulta ===');
+
+    // 1) Validar credenciales
+    if (!process.env.CONNI_KEY || !process.env.CONNI_TOKEN) {
+      console.log('Error: Credenciales faltantes en .env');
+      return res.status(400).json({
+        error: 'Faltan credenciales de API (ConniKey o ConniToken)',
+        details: 'Verifica que CONNI_KEY y CONNI_TOKEN estén definidos en .env'
+      });
+    }
+    console.log('Credenciales cargadas correctamente desde .env:', {
+      CONNI_KEY: process.env.CONNI_KEY ? 'Presente' : 'Falta',
+      CONNI_TOKEN: process.env.CONNI_TOKEN ? 'Presente' : 'Falta'
+    });
+
+    // 2) Configurar la solicitud
+    const apiUrl = 'https://serviciosqa.siesacloud.com/api/connekta/v3/ejecutarconsulta';
+    const params = {
+      idCompania: 7375,
+      descripcion: 'merkahorro_Inventario_Dotación_',
+      paginacion: 'numPag=1|tamPag=500'
+    };
+    console.log('Parámetros de consulta:', params);
+    const fullUrl = `${apiUrl}?${new URLSearchParams(params).toString()}`;
+    console.log('URL completa generada:', fullUrl);
+
+    // 3) Hacer la solicitud al API externo
+    console.log('Enviando solicitud al API externo...');
+    const response = await axios.get(apiUrl, {
+      params,
+      headers: {
+        'ConniKey': process.env.CONNI_KEY,
+        'ConniToken': process.env.CONNI_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000 // Timeout de 10 segundos
+    });
+
+    // 4) Log para depuración
+    console.log('Respuesta cruda del API (status:', response.status, '):', response.data);
+
+    // 5) Retornar los datos del API externo
+    console.log('Consulta exitosa, retornando datos');
+    return res.status(200).json({
+      message: 'Consulta ejecutada correctamente',
+      data: response.data
+    });
+  } catch (err) {
+    console.error('=== ejecutarConsulta error ===');
+    console.error('Mensaje de error:', err.message);
+    console.error('Stack trace:', err.stack);
+    let errorDetails = err.message;
+    let statusCode = 500;
+
+    if (err.response) {
+      console.error('Detalles de respuesta del API externo:', err.response.data);
+      console.error('Status del API externo:', err.response.status);
+      statusCode = err.response.status;
+      errorDetails = err.response.data || err.message;
+    } else if (err.code === 'ECONNABORTED') {
+      console.error('Error: Timeout en la solicitud al API externo');
+      errorDetails = 'La solicitud al API externo superó el tiempo de espera';
+    } else if (err.code === 'ENOTFOUND') {
+      console.error('Error: No se pudo conectar al API externo');
+      errorDetails = 'No se pudo conectar al servidor del API externo (verifica la URL)';
+    }
+
+    return res.status(statusCode).json({
+      error: 'Error al ejecutar la consulta',
+      details: errorDetails
+    });
   }
 };

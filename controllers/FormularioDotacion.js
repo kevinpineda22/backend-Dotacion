@@ -120,47 +120,63 @@ export const confirmarDotacion = async (req, res) => {
   }
 };
 
-// Endpoint para subir factura o comprobante de compra de bono de calzado
-// ...existing code...
-// Endpoint para subir factura o comprobante de compra de bono de calzado
 export const subirFactura = async (req, res) => {
   try {
-    // Si no usas express-fileupload ni multer, revisa cómo accedes al archivo.
-    // Para multipart/form-data puro, puedes usar 'busboy' o 'formidable'.
-    // Ejemplo usando formidable:
-    
-
-    const form = formidable({ multiples: false });
+    const form = formidable({ multiples: false }); // Solo un archivo permitido
     form.parse(req, async (err, fields, files) => {
+      console.log('Archivos recibidos:', files);
       if (err) {
-        return res.status(400).json({ error: "Error al procesar el archivo", details: err.message });
+        console.error('Error al procesar el archivo:', err);
+        return res.status(400).json({ error: 'Error al procesar el archivo', details: err.message });
       }
+
+      // Verificar si files.factura existe
       const file = files.factura;
-      if (!file) return res.status(400).json({ error: "No se adjuntó la factura" });
+      if (!file) {
+        return res.status(400).json({ error: 'No se adjuntó la factura' });
+      }
+
+      // En formidable@3.x, file es un objeto File (no un arreglo, ya que multiples: false)
+      const filepath = file.filepath;
+      const originalFilename = file.originalFilename || 'factura.jpg';
+      const contentType = file.mimetype || 'image/jpeg';
+
+      if (!filepath) {
+        return res.status(400).json({ error: 'No se pudo obtener la ruta del archivo' });
+      }
 
       // Leer el archivo como buffer
       const fs = await import('fs/promises');
-      const fileData = await fs.readFile(file.filepath);
-      const fileName = `factura_${Date.now()}_${file.originalFilename}`;
-      const contentType = file.mimetype || 'image/jpeg';
+      const fileData = await fs.readFile(filepath);
 
+      // Generar un nombre único para el archivo
+      const fileName = `factura_${Date.now()}_${originalFilename}`;
+
+      // Subir a Supabase
       const { data: storageData, error: storageError } = await supabase.storage
-        .from("facturas")
+        .from('facturas')
         .upload(fileName, fileData, { contentType });
 
       if (storageError) {
-        return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
+        console.error('Error al subir a Supabase:', storageError);
+        return res.status(500).json({ error: 'Error al subir la factura', details: storageError.message });
       }
 
+      // Obtener la URL pública
       const { data: publicUrlData } = supabase.storage
-        .from("facturas")
+        .from('facturas')
         .getPublicUrl(fileName);
+
       const facturaUrl = publicUrlData.publicUrl;
+      if (!facturaUrl) {
+        return res.status(500).json({ error: 'No se pudo generar la URL pública de la factura' });
+      }
 
       return res.status(200).json({ url: facturaUrl });
     });
   } catch (error) {
-    return res.status(500).json({ error: "Error al subir la factura", details: error.message });
+    console.error('Error general en subirFactura:', error);
+    return res.status(500).json({ error: 'Error al subir la factura', details: error.message });
   }
 };
 // ...existing code...

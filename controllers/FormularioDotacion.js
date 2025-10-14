@@ -1,4 +1,5 @@
 import supabase from "../supabase/cliente.js";
+import formidable from 'formidable';
 
 
 
@@ -120,38 +121,44 @@ export const confirmarDotacion = async (req, res) => {
 };
 
 // Endpoint para subir factura o comprobante de compra de bono de calzado
+// ...existing code...
+// Endpoint para subir factura o comprobante de compra de bono de calzado
 export const subirFactura = async (req, res) => {
   try {
-    // Si usas express-fileupload, el archivo está en req.files.factura
-    // Si usas multer, el archivo está en req.file
-    let file;
-    if (req.files && req.files.factura) {
-      file = req.files.factura;
-    } else if (req.file) {
-      file = req.file;
-    }
-    if (!file) return res.status(400).json({ error: "No se adjuntó la factura" });
+    // Si no usas express-fileupload ni multer, revisa cómo accedes al archivo.
+    // Para multipart/form-data puro, puedes usar 'busboy' o 'formidable'.
+    // Ejemplo usando formidable:
+    
 
-    // Para express-fileupload: file.data
-    // Para multer: file.buffer
-    const fileData = file.data || file.buffer;
-    const fileName = `factura_${Date.now()}_${file.name || file.originalname}`;
-    const contentType = file.mimetype || 'image/jpeg';
+    const form = formidable({ multiples: false });
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        return res.status(400).json({ error: "Error al procesar el archivo", details: err.message });
+      }
+      const file = files.factura;
+      if (!file) return res.status(400).json({ error: "No se adjuntó la factura" });
 
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from("facturas")
-      .upload(fileName, fileData, { contentType });
+      // Leer el archivo como buffer
+      const fs = await import('fs/promises');
+      const fileData = await fs.readFile(file.filepath);
+      const fileName = `factura_${Date.now()}_${file.originalFilename}`;
+      const contentType = file.mimetype || 'image/jpeg';
 
-    if (storageError) {
-      return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
-    }
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from("facturas")
+        .upload(fileName, fileData, { contentType });
 
-    const { data: publicUrlData } = supabase.storage
-      .from("facturas")
-      .getPublicUrl(fileName);
-    const facturaUrl = publicUrlData.publicUrl;
+      if (storageError) {
+        return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
+      }
 
-    return res.status(200).json({ url: facturaUrl });
+      const { data: publicUrlData } = supabase.storage
+        .from("facturas")
+        .getPublicUrl(fileName);
+      const facturaUrl = publicUrlData.publicUrl;
+
+      return res.status(200).json({ url: facturaUrl });
+    });
   } catch (error) {
     return res.status(500).json({ error: "Error al subir la factura", details: error.message });
   }

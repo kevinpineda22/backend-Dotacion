@@ -120,23 +120,23 @@ export const confirmarDotacion = async (req, res) => {
   }
 };
 
+// FACTURA BONO CALZADO
 export const subirFactura = async (req, res) => {
   try {
     const form = formidable({ multiples: false }); // Solo un archivo permitido
     form.parse(req, async (err, fields, files) => {
-      console.log('Archivos recibidos:', files);
       if (err) {
         console.error('Error al procesar el archivo:', err);
         return res.status(400).json({ error: 'Error al procesar el archivo', details: err.message });
       }
 
-      // Verificar si files.factura existe
-      const file = files.factura;
-      if (!file) {
+      // Verificar si files.factura existe y es un arreglo
+      if (!files.factura || !Array.isArray(files.factura) || files.factura.length === 0) {
         return res.status(400).json({ error: 'No se adjuntó la factura' });
       }
 
-      // En formidable@3.x, file es un objeto File (no un arreglo, ya que multiples: false)
+      // Extraer el primer archivo del arreglo
+      const file = files.factura[0]; // files.factura es un arreglo, tomamos el primer elemento
       const filepath = file.filepath;
       const originalFilename = file.originalFilename || 'factura.jpg';
       const contentType = file.mimetype || 'image/jpeg';

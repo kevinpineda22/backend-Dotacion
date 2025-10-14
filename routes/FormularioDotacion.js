@@ -1,11 +1,10 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega} from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega,subirFactura} from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 
 // ---- CREACIÓN (incluye entrega inicial) ----
 router.post('/dotacion', crearDotacion);
-
 // ---- LECTURAS ----
 // Ruta para obtener todas las dotaciones
 router.get('/dotaciones', obtenerDotaciones);
@@ -22,7 +21,11 @@ router.post('/dotaciones/:id/entregas', appendEntrega);
 router.put('/dotaciones/:id/entregas/:entregaId', updateEntrega);
 
 // ---- CONFIRMAR DOTACIÓN (firma) ----
-router.post('/dotaciones/confirmar', confirmarDotacion);
+// Confirmar entrega de dotación (firma y factura por entrega)
+router.post('/dotacion/confirmada', confirmarDotacion)
+
+// Subir factura de bono calzado
+router.post('/dotacion/factura', subirFactura);
 
 
 

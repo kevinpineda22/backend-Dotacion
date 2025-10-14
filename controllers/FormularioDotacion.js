@@ -42,143 +42,106 @@ const normalizeItems = (items = {}) =>
   );
 
 
-// Endpoint para confirmar entrega de dotación con firma
+/// Endpoint para confirmar la dotación con firma 
+
 export const confirmarDotacion = async (req, res) => {
   try {
-    const { dotacionId, firma } = req.body;
+    const { dotacionId, entregaId, firma, facturaUrl } = req.body;
 
     // Validar entrada
-    if (!dotacionId || !firma) {
-      console.error("Faltan datos: dotacionId o firma no proporcionados");
+    if (!dotacionId || !entregaId || !firma) {
       return res.status(400).json({
-        error: "El dotacionId y la firma son obligatorios",
+        error: "dotacionId, entregaId y firma son obligatorios",
       });
     }
 
-    console.log("dotacionId recibido:", dotacionId);
-    console.log("Tamaño de la firma (base64):", firma.length);
-
     // Subir la firma a Supabase Storage
-    const fileName = `firma_${dotacionId}_${Date.now()}.png`;
+    const fileName = `firma_${dotacionId}_${entregaId}_${Date.now()}.png`;
     const base64Data = firma.replace(/^data:image\/png;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
 
     const { data: storageData, error: storageError } = await supabase.storage
       .from("firmas")
-      .upload(fileName, buffer, {
-        contentType: "image/png",
-      });
+      .upload(fileName, buffer, { contentType: "image/png" });
 
     if (storageError) {
-      console.error("Error al subir la firma a Storage:", storageError);
-      return res.status(500).json({
-        error: "Error al subir la firma a Storage",
-        details: storageError.message,
-      });
+      return res.status(500).json({ error: "Error al subir la firma", details: storageError.message });
     }
 
-    console.log("Firma subida exitosamente:", storageData);
-
-    // Obtener la URL pública
     const { data: publicUrlData } = supabase.storage
       .from("firmas")
       .getPublicUrl(fileName);
-    const publicUrl = publicUrlData.publicUrl;
-    if (!publicUrl) {
-      console.error("No se pudo obtener la URL pública de la firma");
-      return res.status(500).json({
-        error: "No se pudo obtener la URL pública de la firma",
-      });
-    }
-    console.log("URL pública de la firma:", publicUrl);
+    const firmaUrl = publicUrlData.publicUrl;
 
-    // Verificar si el registro existe
-    const { data: checkData, error: checkError } = await supabase
+    // Obtener el registro de dotación
+    const { data: dotacionData, error: dotacionError } = await supabase
       .from("dotaciones")
-      .select("id, documento, nombre, firma")
-      .eq("id", dotacionId);
+      .select("id, entregas")
+      .eq("id", dotacionId)
+      .single();
 
-    if (checkError) {
-      console.error("Error al verificar el registro:", checkError);
-      return res.status(500).json({
-        error: "Error al verificar el registro",
-        details: checkError.message,
-      });
-    }
-    if (!checkData || checkData.length === 0) {
-      console.log("No se encontró el registro con id:", dotacionId);
-      return res.status(404).json({
-        error: "No se encontró la dotación con el ID proporcionado",
-      });
+    if (dotacionError || !dotacionData) {
+      return res.status(404).json({ error: "No se encontró la dotación" });
     }
 
-    console.log("Registro encontrado:", JSON.stringify(checkData, null, 2));
-
-    // Verificar si ya existe una firma
-    if (checkData[0].firma) {
-      console.warn("El registro ya tiene una firma:", checkData[0].firma);
-      return res.status(400).json({
-        error: "La dotación ya tiene una firma registrada",
-      });
+    // Buscar la entrega y actualizar firma/factura
+    let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
+    const idx = entregas.findIndex(e => e.id === entregaId);
+    if (idx === -1) {
+      return res.status(404).json({ error: "No se encontró la entrega" });
     }
+    if (entregas[idx].firma) {
+      return res.status(400).json({ error: "La entrega ya tiene una firma registrada" });
+    }
+    entregas[idx].firma = firmaUrl;
+    if (facturaUrl) entregas[idx].facturaUrl = facturaUrl;
 
-    // Actualizar el campo firma en la tabla dotaciones
+    // Actualizar el registro en la base de datos
     const { data: updateData, error: updateError } = await supabase
       .from("dotaciones")
-      .update({ firma: publicUrl })
+      .update({ entregas })
       .eq("id", dotacionId)
       .select();
 
     if (updateError) {
-      console.error("Error al actualizar el campo firma:", updateError);
-      return res.status(500).json({
-        error: "Error al actualizar el campo firma",
-        details: updateError.message,
-      });
+      return res.status(500).json({ error: "Error al actualizar la entrega", details: updateError.message });
     }
-
-    if (!updateData || updateData.length === 0) {
-      console.error("No se devolvieron datos tras la actualización");
-      return res.status(500).json({
-        error: "No se pudo actualizar el registro",
-      });
-    }
-
-    console.log(
-      "Registro actualizado:",
-      JSON.stringify(updateData[0], null, 2)
-    );
-
-    // Verificar que la URL se guardó correctamente
-    const { data: verifyData, error: verifyError } = await supabase
-      .from("dotaciones")
-      .select("firma")
-      .eq("id", dotacionId)
-      .single();
-
-    if (verifyError || !verifyData || !verifyData.firma) {
-      console.error(
-        "Error al verificar la actualización:",
-        verifyError || "No se encontró la firma"
-      );
-      return res.status(500).json({
-        error: "No se pudo verificar la actualización de la firma",
-        details: verifyError ? verifyError.message : "No se encontró la firma",
-      });
-    }
-
-    console.log("Firma verificada en la base de datos:", verifyData.firma);
 
     return res.status(200).json({
       message: "Firma registrada con éxito",
-      data: updateData[0], // Devolver el registro actualizado
+      data: entregas[idx],
     });
   } catch (error) {
-    console.error("Error al confirmar la dotación:", error);
     return res.status(500).json({
       error: "Error al registrar la firma",
       details: error.message,
     });
+  }
+};
+
+// Endpoint para subir factura o comprobante de compra de bono de calzado
+export const subirFactura = async (req, res) => {
+  try {
+    const file = req.files?.factura;
+    if (!file) return res.status(400).json({ error: "No se adjuntó la factura" });
+
+    const fileName = `factura_${Date.now()}_${file.name}`;
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("facturas")
+      .upload(fileName, file.data, { contentType: file.mimetype });
+
+    if (storageError) {
+      return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("facturas")
+      .getPublicUrl(fileName);
+    const facturaUrl = publicUrlData.publicUrl;
+
+    return res.status(200).json({ url: facturaUrl });
+  } catch (error) {
+    return res.status(500).json({ error: "Error al subir la factura", details: error.message });
   }
 };
 
@@ -515,81 +478,5 @@ export const updateEntrega = async (req, res) => {
   } catch (err) {
     console.error('updateEntrega error:', err);
     return res.status(500).json({ error: 'Error al actualizar la entrega', details: err.message });
-  }
-};
-export const ejecutarConsulta = async (req, res) => {
-  console.log('=== Controlador ejecutarConsulta invocado (ruta: /api/conexion) ===');
-  try {
-    console.log('=== Iniciando ejecutarConsulta ===');
-
-    // 1) Validar credenciales
-    if (!process.env.CONNI_KEY || !process.env.CONNI_TOKEN) {
-      console.log('Error: Credenciales faltantes en .env');
-      return res.status(400).json({
-        error: 'Faltan credenciales de API (ConniKey o ConniToken)',
-        details: 'Verifica que CONNI_KEY y CONNI_TOKEN estén definidos en .env'
-      });
-    }
-    console.log('Credenciales cargadas correctamente desde .env:', {
-      CONNI_KEY: process.env.CONNI_KEY ? 'Presente' : 'Falta',
-      CONNI_TOKEN: process.env.CONNI_TOKEN ? 'Presente' : 'Falta'
-    });
-
-    // 2) Configurar la solicitud
-    const apiUrl = 'https://serviciosqa.siesacloud.com/api/connekta/v3/ejecutarconsulta';
-    const params = {
-      idCompania: 7375,
-      descripcion: 'merkahorro_Inventario_Dotación_',
-      paginacion: 'numPag=1|tamPag=500'
-    };
-    console.log('Parámetros de consulta:', params);
-    const fullUrl = `${apiUrl}?${new URLSearchParams(params).toString()}`;
-    console.log('URL completa generada:', fullUrl);
-
-    // 3) Hacer la solicitud al API externo
-    console.log('Enviando solicitud al API externo...');
-    const response = await axios.get(apiUrl, {
-      params,
-      headers: {
-        'ConniKey': process.env.CONNI_KEY,
-        'ConniToken': process.env.CONNI_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000 // Timeout de 10 segundos
-    });
-
-    // 4) Log para depuración
-    console.log('Respuesta cruda del API (status:', response.status, '):', response.data);
-
-    // 5) Retornar los datos del API externo
-    console.log('Consulta exitosa, retornando datos');
-    return res.status(200).json({
-      message: 'Consulta ejecutada correctamente',
-      data: response.data
-    });
-  } catch (err) {
-    console.error('=== ejecutarConsulta error ===');
-    console.error('Mensaje de error:', err.message);
-    console.error('Stack trace:', err.stack);
-    let errorDetails = err.message;
-    let statusCode = 500;
-
-    if (err.response) {
-      console.error('Detalles de respuesta del API externo:', err.response.data);
-      console.error('Status del API externo:', err.response.status);
-      statusCode = err.response.status;
-      errorDetails = err.response.data || err.message;
-    } else if (err.code === 'ECONNABORTED') {
-      console.error('Error: Timeout en la solicitud al API externo');
-      errorDetails = 'La solicitud al API externo superó el tiempo de espera';
-    } else if (err.code === 'ENOTFOUND') {
-      console.error('Error: No se pudo conectar al API externo');
-      errorDetails = 'No se pudo conectar al servidor del API externo (verifica la URL)';
-    }
-
-    return res.status(statusCode).json({
-      error: 'Error al ejecutar la consulta',
-      details: errorDetails
-    });
   }
 };

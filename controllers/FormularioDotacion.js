@@ -123,11 +123,17 @@ export const confirmarDotacion = async (req, res) => {
 // FACTURA BONO CALZADO
 export const subirFactura = async (req, res) => {
   try {
-    const form = formidable({ multiples: false }); // Solo un archivo permitido
+    const form = formidable({ multiples: false });
     form.parse(req, async (err, fields, files) => {
       if (err) {
-        console.error('Error al procesar el archivo:', err);
         return res.status(400).json({ error: 'Error al procesar el archivo', details: err.message });
+      }
+
+      // Validar datos de la entrega
+      const dotacionId = fields.dotacionId;
+      const entregaId = fields.entregaId;
+      if (!dotacionId || !entregaId) {
+        return res.status(400).json({ error: 'dotacionId y entregaId son obligatorios' });
       }
 
       // Verificar si files.factura existe y es un arreglo
@@ -136,7 +142,7 @@ export const subirFactura = async (req, res) => {
       }
 
       // Extraer el primer archivo del arreglo
-      const file = files.factura[0]; // files.factura es un arreglo, tomamos el primer elemento
+      const file = files.factura[0];
       const filepath = file.filepath;
       const originalFilename = file.originalFilename || 'factura.jpg';
       const contentType = file.mimetype || 'image/jpeg';
@@ -150,7 +156,7 @@ export const subirFactura = async (req, res) => {
       const fileData = await fs.readFile(filepath);
 
       // Generar un nombre único para el archivo
-      const fileName = `factura_${Date.now()}_${originalFilename}`;
+      const fileName = `factura_${dotacionId}_${entregaId}_${Date.now()}_${originalFilename}`;
 
       // Subir a Supabase
       const { data: storageData, error: storageError } = await supabase.storage
@@ -158,7 +164,6 @@ export const subirFactura = async (req, res) => {
         .upload(fileName, fileData, { contentType });
 
       if (storageError) {
-        console.error('Error al subir a Supabase:', storageError);
         return res.status(500).json({ error: 'Error al subir la factura', details: storageError.message });
       }
 
@@ -172,14 +177,41 @@ export const subirFactura = async (req, res) => {
         return res.status(500).json({ error: 'No se pudo generar la URL pública de la factura' });
       }
 
-      return res.status(200).json({ url: facturaUrl });
+      // Actualizar la entrega en la base de datos
+      const { data: dotacionData, error: dotacionError } = await supabase
+        .from('dotaciones')
+        .select('id, entregas')
+        .eq('id', dotacionId)
+        .single();
+
+      if (dotacionError || !dotacionData) {
+        return res.status(404).json({ error: 'No se encontró la dotación' });
+      }
+
+      let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
+      const idx = entregas.findIndex(e => e.id === entregaId);
+      if (idx === -1) {
+        return res.status(404).json({ error: 'No se encontró la entrega' });
+      }
+      entregas[idx].facturaUrl = facturaUrl;
+
+      // Guardar en la base de datos
+      const { data: updateData, error: updateError } = await supabase
+        .from('dotaciones')
+        .update({ entregas })
+        .eq('id', dotacionId)
+        .select();
+
+      if (updateError) {
+        return res.status(500).json({ error: 'Error al actualizar la entrega', details: updateError.message });
+      }
+
+      return res.status(200).json({ url: facturaUrl, entrega: entregas[idx] });
     });
   } catch (error) {
-    console.error('Error general en subirFactura:', error);
     return res.status(500).json({ error: 'Error al subir la factura', details: error.message });
   }
 };
-// ...existing code...
 
 export const crearDotacion = async (req, res) => {
   try {

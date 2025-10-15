@@ -1,5 +1,5 @@
 import supabase from "../supabase/cliente.js";
-import formidable from 'formidable';
+
 
 
 
@@ -123,93 +123,76 @@ export const confirmarDotacion = async (req, res) => {
 // FACTURA BONO CALZADO
 export const subirFactura = async (req, res) => {
   try {
-    const form = formidable({ multiples: false });
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        return res.status(400).json({ error: 'Error al procesar el archivo', details: err.message });
-      }
+    const { dotacionId, entregaId, factura } = req.body;
 
-      // Validar datos de la entrega
-      const dotacionId = fields.dotacionId;
-      const entregaId = fields.entregaId;
-      if (!dotacionId || !entregaId) {
-        return res.status(400).json({ error: 'dotacionId y entregaId son obligatorios' });
-      }
+    // Validar entrada
+    if (!dotacionId || !entregaId || !factura) {
+      return res.status(400).json({
+        error: "dotacionId, entregaId y factura (base64) son obligatorios",
+      });
+    }
 
-      // Verificar si files.factura existe y es un arreglo
-      if (!files.factura || !Array.isArray(files.factura) || files.factura.length === 0) {
-        return res.status(400).json({ error: 'No se adjuntó la factura' });
-      }
+    // Procesar la factura base64
+    const base64Data = factura.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
 
-      // Extraer el primer archivo del arreglo
-      const file = files.factura[0];
-      const filepath = file.filepath;
-      const originalFilename = file.originalFilename || 'factura.jpg';
-      const contentType = file.mimetype || 'image/jpeg';
+    // Generar nombre de archivo (usa .webp si el frontend optimiza a webp)
+    const fileName = `factura_${dotacionId}_${entregaId}_${Date.now()}.webp`;
 
-      if (!filepath) {
-        return res.status(400).json({ error: 'No se pudo obtener la ruta del archivo' });
-      }
+    // Subir a Supabase Storage
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("facturas")
+      .upload(fileName, buffer, { contentType: "image/webp" });
 
-      // Leer el archivo como buffer
-      const fs = await import('fs/promises');
-      const fileData = await fs.readFile(filepath);
+    if (storageError) {
+      return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
+    }
 
-      // Generar un nombre único para el archivo
-      const fileName = `factura_${dotacionId}_${entregaId}_${Date.now()}_${originalFilename}`;
+    const { data: publicUrlData } = supabase.storage
+      .from("facturas")
+      .getPublicUrl(fileName);
+    const facturaUrl = publicUrlData.publicUrl;
 
-      // Subir a Supabase
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('facturas')
-        .upload(fileName, fileData, { contentType });
+    // Obtener el registro de dotación
+    const { data: dotacionData, error: dotacionError } = await supabase
+      .from("dotaciones")
+      .select("id, entregas")
+      .eq("id", dotacionId)
+      .single();
 
-      if (storageError) {
-        return res.status(500).json({ error: 'Error al subir la factura', details: storageError.message });
-      }
+    if (dotacionError || !dotacionData) {
+      return res.status(404).json({ error: "No se encontró la dotación" });
+    }
 
-      // Obtener la URL pública
-      const { data: publicUrlData } = supabase.storage
-        .from('facturas')
-        .getPublicUrl(fileName);
+    // Buscar la entrega y actualizar facturaUrl
+    let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
+    const idx = entregas.findIndex(e => String(e.id) === String(entregaId));  // Asegura comparación como strings
+    if (idx === -1) {
+      return res.status(404).json({ error: "No se encontró la entrega" });
+    }
+    // Opcional: if (entregas[idx].facturaUrl) return res.status(400).json({ error: "La entrega ya tiene una factura registrada" });
+    entregas[idx].facturaUrl = facturaUrl;
 
-      const facturaUrl = publicUrlData.publicUrl;
-      if (!facturaUrl) {
-        return res.status(500).json({ error: 'No se pudo generar la URL pública de la factura' });
-      }
+    // Actualizar el registro en la base de datos
+    const { data: updateData, error: updateError } = await supabase
+      .from("dotaciones")
+      .update({ entregas })
+      .eq("id", dotacionId)
+      .select();
 
-      // Actualizar la entrega en la base de datos
-      const { data: dotacionData, error: dotacionError } = await supabase
-        .from('dotaciones')
-        .select('id, entregas')
-        .eq('id', dotacionId)
-        .single();
+    if (updateError) {
+      return res.status(500).json({ error: "Error al actualizar la entrega", details: updateError.message });
+    }
 
-      if (dotacionError || !dotacionData) {
-        return res.status(404).json({ error: 'No se encontró la dotación' });
-      }
-
-      let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
-      const idx = entregas.findIndex(e => e.id === entregaId);
-      if (idx === -1) {
-        return res.status(404).json({ error: 'No se encontró la entrega' });
-      }
-      entregas[idx].facturaUrl = facturaUrl;
-
-      // Guardar en la base de datos
-      const { data: updateData, error: updateError } = await supabase
-        .from('dotaciones')
-        .update({ entregas })
-        .eq('id', dotacionId)
-        .select();
-
-      if (updateError) {
-        return res.status(500).json({ error: 'Error al actualizar la entrega', details: updateError.message });
-      }
-
-      return res.status(200).json({ url: facturaUrl, entrega: entregas[idx] });
+    return res.status(200).json({
+      url: facturaUrl,
+      entrega: entregas[idx],
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Error al subir la factura', details: error.message });
+    return res.status(500).json({
+      error: "Error al subir la factura",
+      details: error.message,
+    });
   }
 };
 

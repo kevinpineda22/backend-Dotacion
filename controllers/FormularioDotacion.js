@@ -123,37 +123,34 @@ export const confirmarDotacion = async (req, res) => {
 // FACTURA BONO CALZADO
 export const subirFactura = async (req, res) => {
   try {
-    const { dotacionId, entregaId, factura } = req.body;
+    const { dotacionId, entregaId, factura } = req.body;  // factura = base64
 
-    // Validar entrada
+    // Validar entrada (IGUAL)
     if (!dotacionId || !entregaId || !factura) {
       return res.status(400).json({
-        error: "dotacionId, entregaId y factura (base64) son obligatorios",
+        error: "dotacionId, entregaId y factura son obligatorios",
       });
     }
 
-    // Procesar la factura base64
-    const base64Data = factura.replace(/^data:image\/\w+;base64,/, "");
+    // Subir a Supabase Storage (IGUAL pero facturas)
+    const fileName = `factura_${dotacionId}_${entregaId}_${Date.now()}.png`;
+    const base64Data = factura.replace(/^data:image\/\w+;base64,/, "");  // ✅ Soporta webp/png
     const buffer = Buffer.from(base64Data, "base64");
 
-    // Generar nombre de archivo (usa .webp si el frontend optimiza a webp)
-    const fileName = `factura_${dotacionId}_${entregaId}_${Date.now()}.webp`;
-
-    // Subir a Supabase Storage
     const { data: storageData, error: storageError } = await supabase.storage
-      .from("facturas")
-      .upload(fileName, buffer, { contentType: "image/webp" });
+      .from("facturas")  // ✅ Cambia bucket a "facturas"
+      .upload(fileName, buffer, { contentType: "image/png" });  // ✅ O "image/webp"
 
     if (storageError) {
       return res.status(500).json({ error: "Error al subir la factura", details: storageError.message });
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from("facturas")
+      .from("facturas")  // ✅ Mismo bucket
       .getPublicUrl(fileName);
     const facturaUrl = publicUrlData.publicUrl;
 
-    // Obtener el registro de dotación
+    // Obtener y actualizar DB (EXACTAMENTE IGUAL)
     const { data: dotacionData, error: dotacionError } = await supabase
       .from("dotaciones")
       .select("id, entregas")
@@ -164,16 +161,14 @@ export const subirFactura = async (req, res) => {
       return res.status(404).json({ error: "No se encontró la dotación" });
     }
 
-    // Buscar la entrega y actualizar facturaUrl
     let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
-    const idx = entregas.findIndex(e => String(e.id) === String(entregaId));  // Asegura comparación como strings
+    const idx = entregas.findIndex(e => e.id === entregaId);
     if (idx === -1) {
       return res.status(404).json({ error: "No se encontró la entrega" });
     }
-    // Opcional: if (entregas[idx].facturaUrl) return res.status(400).json({ error: "La entrega ya tiene una factura registrada" });
-    entregas[idx].facturaUrl = facturaUrl;
 
-    // Actualizar el registro en la base de datos
+    entregas[idx].facturaUrl = facturaUrl;  // ✅ Solo esto cambia
+
     const { data: updateData, error: updateError } = await supabase
       .from("dotaciones")
       .update({ entregas })
@@ -185,12 +180,13 @@ export const subirFactura = async (req, res) => {
     }
 
     return res.status(200).json({
-      url: facturaUrl,
-      entrega: entregas[idx],
+      message: "Factura registrada con éxito",  // ✅ Mensaje cambiado
+      url: facturaUrl,  // ✅ Devuelve URL
+      data: entregas[idx],
     });
   } catch (error) {
     return res.status(500).json({
-      error: "Error al subir la factura",
+      error: "Error al registrar la factura",
       details: error.message,
     });
   }

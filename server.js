@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import FormularioDotacion from './routes/FormularioDotacion.js';
+import ActasDotacion from './routes/ActasDotacion.js'; // <-- agregado
 
 
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(cors({
 
 app.use(bodyParser.json());
 app.use('/api', FormularioDotacion);
+app.use('/api', ActasDotacion); // <-- montar rutas de actas
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));

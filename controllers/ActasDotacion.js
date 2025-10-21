@@ -48,3 +48,35 @@ export const desactivarPersonal = async (req, res) => {
     return res.status(500).json({ error: "Error interno", details: error.message });
   }
 };
+// En tu controlador de dotación
+export const reactivarPersonal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { observacion } = req.body ?? {};
+
+    if (!id) return res.status(400).json({ error: "El ID de la dotación es obligatorio" });
+
+    const updateObj = { 
+      activo: true,
+      devolvio_dotacion: false,
+      observacion_reactivacion: observacion || ''
+    };
+
+    const { data: updated, error: updErr } = await supabase
+      .from("dotaciones")
+      .update(updateObj)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (updErr) {
+      console.error("Error al reactivar:", updErr);
+      return res.status(500).json({ error: "Error al reactivar", details: updErr.message });
+    }
+
+    return res.status(200).json({ message: "Empleado reactivado", data: updated });
+  } catch (error) {
+    console.error("reactivarPersonal error:", error);
+    return res.status(500).json({ error: "Error interno", details: error.message });
+  }
+};

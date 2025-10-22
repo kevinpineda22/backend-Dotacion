@@ -16,7 +16,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(bodyParser.json());
+// Aumentar límites para manejar imágenes base64 de iOS
+app.use(bodyParser.json({ limit: '50mb' })); // Aumenta de 1mb a 50mb
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 app.use('/api', FormularioDotacion);
 app.use('/api', ActasDotacion); // <-- montar rutas de actas
 

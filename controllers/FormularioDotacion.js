@@ -252,6 +252,10 @@ export const crearDotacion = async (req, res) => {
       });
     }
 
+    // Capturar información del responsable del registro
+    const registradoPor = formData.registradoPor || "Usuario no identificado";
+    const fechaRegistro = formData.fechaRegistro || new Date().toISOString();
+
     const entregaInicial = {
       id: genId(),
       tipo: "inicial",
@@ -259,6 +263,9 @@ export const crearDotacion = async (req, res) => {
       categoria: categoriaKey,
       items: normalizeItems(inicialItems),
       observacion: "",
+      // Agregar información del responsable en la entrega
+      registradoPor: registradoPor,
+      fechaRegistro: fechaRegistro
     };
 
     const payload = {
@@ -273,6 +280,9 @@ export const crearDotacion = async (req, res) => {
       dotacion: formData.dotacion,      // lo guardas como plantilla viva
       proxima_entrega,
       entregas: [entregaInicial],        // <<--- HISTORIAL arranca con la inicial
+      // Agregar campos de auditoría al registro principal
+      registrado_por: registradoPor,
+      fecha_registro: fechaRegistro
     };
 
     const { data, error } = await supabase
@@ -285,6 +295,7 @@ export const crearDotacion = async (req, res) => {
     res.status(201).json({
       message: "Dotación registrada con éxito",
       data: data[0],
+      registradoPor: registradoPor // Incluir en la respuesta para confirmación
     });
   } catch (error) {
     console.error("Error al registrar la dotación:", error);

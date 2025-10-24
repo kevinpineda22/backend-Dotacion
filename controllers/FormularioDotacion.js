@@ -527,3 +527,72 @@ export const updateEntrega = async (req, res) => {
     return res.status(500).json({ error: 'Error al actualizar la entrega', details: err.message });
   }
 };
+
+// ---- ENDPOINT PARA VALIDAR SI UN DOCUMENTO YA EXISTE ----
+// Valida si un número de documento ya está registrado en el sistema
+// Devuelve { exists: boolean, message: string }
+export const validarDocumento = async (req, res) => {
+  try {
+    const { documento } = req.params;
+
+    // Validar que el documento venga en la petición
+    if (!documento || !documento.trim()) {
+      return res.status(400).json({
+        error: "El número de documento es obligatorio",
+        exists: false
+      });
+    }
+
+    // Validar longitud mínima del documento (como en el frontend)
+    if (documento.trim().length < 6) {
+      return res.status(200).json({
+        exists: false,
+        message: "Documento válido para registro"
+      });
+    }
+
+    // Buscar en la base de datos si ya existe una dotación con ese documento
+    const { data, error } = await supabase
+      .from("dotaciones")
+      .select("id, nombre, documento, empresa, cargo")
+      .eq("documento", documento.trim())
+      .limit(1);
+
+    if (error) {
+      console.error("Error al validar documento:", error);
+      return res.status(500).json({
+        error: "Error interno del servidor al validar el documento",
+        details: error.message,
+        exists: false // En caso de error, permitir continuar
+      });
+    }
+
+    // Si existe algún registro con ese documento
+    if (data && data.length > 0) {
+      const existingUser = data[0];
+      return res.status(200).json({
+        exists: true,
+        message: "Este documento ya está registrado en el sistema",
+        data: {
+          nombre: existingUser.nombre,
+          empresa: existingUser.empresa,
+          cargo: existingUser.cargo
+        }
+      });
+    }
+
+    // Si no existe, documento disponible para registro
+    return res.status(200).json({
+      exists: false,
+      message: "Documento disponible para registro"
+    });
+
+  } catch (error) {
+    console.error("Error al validar documento:", error);
+    return res.status(500).json({
+      error: "Error al validar el documento",
+      details: error.message,
+      exists: false // En caso de error, permitir continuar
+    });
+  }
+};

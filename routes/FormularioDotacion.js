@@ -1,10 +1,15 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega,subirFactura} from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega,subirFactura,validarDocumento} from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 
 // ---- CREACIÓN (incluye entrega inicial) ----
 router.post('/dotacion', crearDotacion);
+
+// ---- VALIDACIÓN DE DOCUMENTO ----
+// Ruta para validar si un documento ya existe en el sistema
+router.get('/dotacion/validar-documento/:documento', validarDocumento);
+
 // ---- LECTURAS ----
 // Ruta para obtener todas las dotaciones
 router.get('/dotaciones', obtenerDotaciones);
@@ -29,4 +34,4 @@ router.post('/dotacion/factura', subirFactura);
 
 
 
-export default router;  
+export default router;

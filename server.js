@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import FormularioDotacion from './routes/FormularioDotacion.js';
 import ActasDotacion from './routes/ActasDotacion.js'; // <-- agregado
-
+import analiticaRoutes from "./routes/analitica.js";
 
 dotenv.config();
 const app = express();
@@ -22,6 +22,9 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/api', FormularioDotacion);
 app.use('/api', ActasDotacion); // <-- montar rutas de actas
+app.use("/api/analitica", analiticaRoutes);
+
+// Configuración de rutas
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));

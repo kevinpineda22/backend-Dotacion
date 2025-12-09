@@ -607,3 +607,33 @@ export const validarDocumento = async (req, res) => {
     });
   }
 };
+
+// ---- ACTUALIZAR NOMBRE ----
+export const actualizarNombre = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre } = req.body;
+
+    if (!nombre) {
+      return res.status(400).json({ error: "El nombre es obligatorio" });
+    }
+
+    const { data, error } = await supabase
+      .from("dotaciones")
+      .update({ nombre })
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "Dotación no encontrada" });
+    }
+
+    res.status(200).json({ message: "Nombre actualizado correctamente", data: data[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

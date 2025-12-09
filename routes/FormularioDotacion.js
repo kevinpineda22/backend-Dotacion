@@ -1,5 +1,5 @@
 import express from 'express';
-import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega,subirFactura,validarDocumento, actualizarNombre} from '../controllers/FormularioDotacion.js';
+import { crearDotacion, obtenerDotaciones,obtenerDotacionPorDocumento,confirmarDotacion,actualizarDotacion,appendEntrega,updateEntrega,subirFactura,validarDocumento, actualizarNombre, desactivarDotacion} from '../controllers/FormularioDotacion.js';
 
 const router = express.Router();
 
@@ -22,7 +22,10 @@ router.get('/dotacion/:documento', obtenerDotacionPorDocumento);
 router.put('/dotaciones/:id', actualizarDotacion); // Actulizar tallas y unidades de la dotación
 
 // ---- ACTUALIZAR NOMBRE ----
-router.patch('/dotaciones/:id/nombre', actualizarNombre);
+router.put('/dotaciones/:id/nombre', actualizarNombre);
+
+// ---- DESACTIVAR DOTACIÓN ----
+router.put('/dotaciones/:id/desactivar', desactivarDotacion);
 
 // ---- HISTORIAL: APPEND y UPDATE POR ENTREGA ----
 router.post('/dotaciones/:id/entregas', appendEntrega);

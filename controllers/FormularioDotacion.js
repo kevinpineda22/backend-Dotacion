@@ -86,7 +86,7 @@ export const confirmarDotacion = async (req, res) => {
     }
 
     // Buscar la entrega y actualizar firma/factura
-    let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
+    let entregas = ensureArrayEntregas(dotacionData.entregas);
     const idx = entregas.findIndex(e => e.id === entregaId);
     if (idx === -1) {
       return res.status(404).json({ error: "No se encontró la entrega" });
@@ -161,7 +161,7 @@ export const subirFactura = async (req, res) => {
       return res.status(404).json({ error: "No se encontró la dotación" });
     }
 
-    let entregas = Array.isArray(dotacionData.entregas) ? dotacionData.entregas : [];
+    let entregas = ensureArrayEntregas(dotacionData.entregas);
     const idx = entregas.findIndex(e => e.id === entregaId);
     if (idx === -1) {
       return res.status(404).json({ error: "No se encontró la entrega" });
@@ -456,7 +456,7 @@ export const appendEntrega = async (req, res) => {
 
     if (selErr) throw new Error(selErr.message);
 
-    const actuales = Array.isArray(row?.entregas) ? row.entregas : [];
+    const actuales = ensureArrayEntregas(row?.entregas);
     const nuevas = [...actuales, entregaToAdd];
 
     const updateObj = { entregas: nuevas };

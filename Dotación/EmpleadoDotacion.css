@@ -1,0 +1,710 @@
+:root {
+  --primary-color: #89DC00;
+  --secondary-color: #210d65;
+  --text-color: #2d3748;
+  --text-light: #718096;
+  --background-color: #f7fafc;
+  --card-background: #ffffff;
+  --error-color: #e53e3e;
+  --success-color: #38a169;
+  --warning-color: #ed8936;
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
+}
+
+.ed-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.ed-title {
+  color: var(--secondary-color);
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(33, 13, 101, 0.1);
+  letter-spacing: -0.025em;
+}
+
+.ed-form {
+  background: var(--card-background);
+  padding: 2rem;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-color);
+}
+
+.ed-label {
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ed-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(137, 220, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.ed-button {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #6bb300 100%);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-top: 1rem;
+}
+
+.ed-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, #6bb300 0%, var(--primary-color) 100%);
+}
+
+.ed-button:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-error {
+  color: var(--error-color);
+  background: #fed7d7;
+  border: 1px solid #feb2b2;
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  text-align: center;
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+.ed-dotacion-info {
+  margin-top: 2rem;
+}
+
+.ed-subtitle {
+  color: var(--secondary-color);
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-subtitle::before {
+  content: "📋";
+  font-size: 1.5rem;
+}
+
+.ed-dotacion-item {
+  background: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.ed-dotacion-item:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.ed-dotacion-header {
+  background: linear-gradient(135deg, var(--secondary-color) 0%, #2d3748 100%);
+  color: white;
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ed-dotacion-info-grid {
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.ed-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ed-info-label {
+  color: var(--text-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ed-info-value {
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.ed-dotacion-entregas {
+  border-top: 1px solid var(--border-color);
+  padding: 2rem;
+  background: #f8fafc;
+}
+
+.ed-dotacion-entregas h4 {
+  color: var(--secondary-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-dotacion-entregas h4::before {
+  content: "📦";
+  font-size: 1rem;
+}
+
+.ed-dotacion-entrega-card {
+  background: var(--card-background);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.ed-dotacion-entrega-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
+
+.ed-entrega-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.ed-entrega-date {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.ed-entrega-category {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ed-dotacion-items {
+  background: #f8fafc;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid var(--primary-color);
+}
+
+.ed-dotacion-items h5 {
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-dotacion-items h5::before {
+  content: "👕";
+  font-size: 0.875rem;
+}
+
+.ed-dotacion-item-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background: white;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-item-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.ed-item-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-light);
+}
+
+.ed-item-badge {
+  background: var(--success-color);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ed-signature-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f0fff4;
+  border-radius: var(--border-radius);
+  border: 1px solid #9ae6b4;
+}
+
+.ed-signature-image {
+  max-width: 200px;
+  max-height: 100px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  margin-top: 0.5rem;
+}
+
+.ed-factura-section {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #fffaf0;
+  border-radius: var(--border-radius);
+  border: 1px solid #fbd38d;
+}
+
+.ed-factura-toggle {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.ed-secondary-button {
+  background: var(--text-light);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-secondary-button:hover {
+  background: var(--text-color);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.ed-factura-preview {
+  max-width: 200px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  margin: 0.5rem 0;
+  transition: transform 0.2s ease;
+}
+
+.ed-factura-preview:hover {
+  transform: scale(1.05);
+}
+
+.ed-factura-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.ed-factura-actions input[type="file"] {
+  padding: 0.75rem;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ed-factura-actions input[type="file"]:hover {
+  border-color: var(--primary-color);
+  background: #f0fff4;
+}
+
+.ed-confirmation-section {
+  margin-top: 2rem;
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+  border-radius: var(--border-radius);
+  border: 1px solid #9ae6b4;
+}
+
+.ed-confirm-button {
+  background: linear-gradient(135deg, var(--secondary-color) 0%, #2d3748 100%);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  min-width: 200px;
+}
+
+.ed-confirm-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, #2d3748 0%, var(--secondary-color) 100%);
+}
+
+.ed-confirm-button:disabled {
+  background: var(--success-color);
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.8;
+}
+
+.ed-confirm-button:disabled::after {
+  content: " ✓";
+}
+
+.ed-no-results {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-light);
+  font-size: 1.125rem;
+  background: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+}
+
+/* Modal de firma electrónica */
+.ed-signature-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(33, 13, 101, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.ed-signature-modal-content {
+  background: var(--card-background);
+  padding: 2rem;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+}
+
+.ed-signature-modal-content h3 {
+  color: var(--secondary-color);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Autorización de firma digital */
+.ed-autoriza-firma {
+  background: #f0f7ff;
+  border: 1px solid #b3d4fc;
+  border-radius: var(--border-radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.ed-autoriza-firma-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.ed-autoriza-firma-checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  margin-top: 2px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+.ed-autoriza-firma-label span {
+  flex: 1;
+}
+
+.ed-signature-canvas {
+  border: 3px dashed var(--primary-color);
+  border-radius: var(--border-radius);
+  background: #f8fafc;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  max-width: 400px;
+  height: 150px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ed-signature-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.ed-signature-actions button {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  border-radius: var(--border-radius);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  min-width: 100px;
+}
+
+.ed-signature-actions button:nth-child(1) {
+  background: #edf2f7;
+  color: var(--text-color);
+}
+
+.ed-signature-actions button:nth-child(1):hover {
+  background: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.ed-signature-actions button:nth-child(2) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.ed-signature-actions button:nth-child(2):hover {
+  background: #6bb300;
+  transform: translateY(-1px);
+}
+
+.ed-signature-actions button:nth-child(3) {
+  background: var(--error-color);
+  color: white;
+}
+
+.ed-signature-actions button:nth-child(3):hover {
+  background: #c53030;
+  transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ed-container {
+    padding: 1rem;
+  }
+
+  .ed-title {
+    font-size: 2rem;
+  }
+
+  .ed-form {
+    padding: 1.5rem;
+  }
+
+  .ed-dotacion-info-grid {
+    grid-template-columns: 1fr;
+    padding: 1.5rem;
+  }
+
+  .ed-dotacion-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .ed-entrega-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .ed-dotacion-item-detail {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .ed-item-details {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .ed-signature-actions {
+    flex-direction: column;
+  }
+
+  .ed-signature-actions button {
+    width: 100%;
+  }
+
+  .ed-factura-actions {
+    gap: 0.75rem;
+  }
+
+  .ed-confirm-button {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .ed-title {
+    font-size: 1.75rem;
+  }
+
+  .ed-dotacion-entregas {
+    padding: 1rem;
+  }
+
+  .ed-dotacion-entrega-card {
+    padding: 1rem;
+  }
+
+  .ed-signature-modal {
+    padding: 0.5rem;
+  }
+
+  .ed-signature-modal-content {
+    padding: 1.5rem;
+  }
+
+  .ed-signature-canvas {
+    height: 120px;
+  }
+}
+
+/* Loading states */
+.ed-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-loading::after {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status badges */
+.ed-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.ed-status-confirmed {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.ed-status-pending {
+  background: #fed7d7;
+  color: #742a2a;
+}

@@ -20,7 +20,7 @@ test("cleanDigits strips non-digit chars and trims", () => {
 function siesaRow(nit, overrides = {}) {
   return {
     nit,
-    nombre: `Empleado ${nit}`,
+    nombre_empleado: `Empleado ${nit}`,
     fecha_ingreso: "2024-01-01",
     fecha_fin_contrato_vigente: null,
     id_tercero: `T-${nit}`,
@@ -196,4 +196,21 @@ test("guard rejects when SIESA payload is below 50% of last known-good count", (
 
 test("guard allows a normal payload", () => {
   assert.equal(shouldRejectForGuard(416, { minEmpleados: 200, ultimoConteoOk: 400 }), false);
+});
+
+test("activo null counts as active: ghost with null activo -> deactivated, not reactivated when present", () => {
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "111", null), // present in SIESA, legacy null -> no flip
+    dotacionRow(2, "999", null), // ghost with legacy null -> deactivate
+  ];
+  const r = computeReconciliation(siesaRows, dotacionRows);
+  assert.deepEqual(r.desactivarIds, [2]);
+  assert.deepEqual(r.reactivarIds, []);
+});
+
+test("sinDotacion rows carry the SIESA employee name (nombre_empleado)", () => {
+  const r = computeReconciliation([siesaRow("555")], []);
+  assert.equal(r.sinDotacion.length, 1);
+  assert.equal(r.sinDotacion[0].nombre, "Empleado 555");
 });

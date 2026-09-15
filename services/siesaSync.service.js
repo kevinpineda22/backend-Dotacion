@@ -32,7 +32,7 @@ export function shouldRejectForGuard(count, { minEmpleados = MIN_EMPLEADOS, ulti
 /**
  * Reconciliación pura: no toca Supabase ni Connekta.
  *
- * @param {Array<object>} siesaRows - filas crudas de SIESA (nit, nombre, fecha_ingreso, fecha_fin_contrato_vigente, id_tercero)
+ * @param {Array<object>} siesaRows - filas crudas de SIESA (nit, nombre_empleado, fecha_ingreso, fecha_fin_contrato_vigente, id_tercero)
  * @param {Array<{id:*, documento:*, activo:boolean}>} dotacionRows - filas actuales de la tabla `dotaciones`
  */
 export function computeReconciliation(siesaRows, dotacionRows) {
@@ -78,10 +78,14 @@ export function computeReconciliation(siesaRows, dotacionRows) {
       duplicados.push({ documento, ids: rows.map((r) => r.id), cantidad: rows.length });
     }
 
+    // Semántica de `activo` en toda la app: solo `false` es inactivo.
+    // Los registros históricos tienen `null` (la columna se agregó después)
+    // y el frontend los trata como activos; acá igual.
     for (const row of rows) {
-      if (enSiesa && row.activo === false) {
+      const estaActivo = row.activo !== false;
+      if (enSiesa && !estaActivo) {
         reactivarIds.push(row.id);
-      } else if (!enSiesa && row.activo === true) {
+      } else if (!enSiesa && estaActivo) {
         desactivarIds.push(row.id);
       }
     }
@@ -92,7 +96,7 @@ export function computeReconciliation(siesaRows, dotacionRows) {
     if (documentosUsadosEnSiesa.has(nit) || porDocumento.has(nit)) continue;
     sinDotacion.push({
       documento: nit,
-      nombre: row.nombre,
+      nombre: row.nombre_empleado,
       fechaIngreso: row.fecha_ingreso,
       idTercero: row.id_tercero,
     });

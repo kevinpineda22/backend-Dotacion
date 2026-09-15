@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import FormularioDotacion from './routes/FormularioDotacion.js';
 import ActasDotacion from './routes/ActasDotacion.js'; // <-- agregado
 import analiticaRoutes from "./routes/analitica.js";
+import siesaSyncRoutes from "./routes/siesaSync.js";
 
 dotenv.config();
 const app = express();
@@ -23,6 +24,7 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', FormularioDotacion);
 app.use('/api', ActasDotacion); // <-- montar rutas de actas
 app.use("/api/analitica", analiticaRoutes);
+app.use("/api/siesa", siesaSyncRoutes);
 
 // Configuración de rutas
 

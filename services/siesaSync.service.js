@@ -5,7 +5,9 @@ const CONSULTA = process.env.SIESA_CONSULTA_EMPLEADOS || "merkahorro_empleados_a
 const TTL_MIN = Number(process.env.SIESA_SYNC_TTL_MIN) || 60;
 const MIN_INTERVAL_SEC = Number(process.env.SIESA_SYNC_MIN_INTERVAL_SEC) || 60;
 const MIN_EMPLEADOS = Number(process.env.SIESA_MIN_EMPLEADOS) || 200;
+const GRACIA_DIAS = Number(process.env.SIESA_GRACIA_DIAS) || 30;
 const CHUNK_SIZE = 200;
+const MARCA_DESACTIVACION_SYNC = "Desactivado por sincronización SIESA";
 /** Tabla de estado de sincronización (fila única). Ver supabase/siesa_sync_dotacion.sql */
 const TABLA_SYNC = "siesa_sync_dotacion";
 
@@ -30,12 +32,30 @@ export function shouldRejectForGuard(count, { minEmpleados = MIN_EMPLEADOS, ulti
 }
 
 /**
+ * ¿La fila está dentro del período de gracia? Un `created_at` ausente o
+ * inválido se trata como registro establecido (fuera de gracia): el dato es
+ * insuficiente para asumir que es un ingreso reciente.
+ *
+ * @param {string|null|undefined} createdAt
+ * @param {Date} now
+ * @param {number} graciaDias
+ */
+function estaEnGracia(createdAt, now, graciaDias) {
+  if (!createdAt) return false;
+  const fecha = new Date(createdAt);
+  if (Number.isNaN(fecha.getTime())) return false;
+  const edadDias = (now.getTime() - fecha.getTime()) / 86400000;
+  return edadDias < graciaDias;
+}
+
+/**
  * Reconciliación pura: no toca Supabase ni Connekta.
  *
  * @param {Array<object>} siesaRows - filas crudas de SIESA (nit, nombre_empleado, fecha_ingreso, fecha_fin_contrato_vigente, id_tercero)
- * @param {Array<{id:*, documento:*, activo:boolean}>} dotacionRows - filas actuales de la tabla `dotaciones`
+ * @param {Array<{id:*, documento:*, activo:boolean, created_at?:string, observacion_desactivacion?:string}>} dotacionRows - filas actuales de la tabla `dotaciones`
+ * @param {Date} now - referencia de "ahora" para el período de gracia (parametrizable en tests)
  */
-export function computeReconciliation(siesaRows, dotacionRows) {
+export function computeReconciliation(siesaRows, dotacionRows, now = new Date()) {
   // La consulta Connekta (`merkahorro_empleados_activos`) ya filtra
   // `fecha_retiro IS NULL`: toda fila que llega acá cuenta como presente,
   // sin importar `fecha_fin_contrato_vigente` (una prórroga sin registrar no
@@ -50,6 +70,7 @@ export function computeReconciliation(siesaRows, dotacionRows) {
   const desactivarIds = [];
   const reactivarIds = [];
   let documentoInvalido = 0;
+  let enGracia = 0;
 
   // documento (limpio) -> filas de dotación que lo comparten
   const porDocumento = new Map();
@@ -83,10 +104,32 @@ export function computeReconciliation(siesaRows, dotacionRows) {
     // y el frontend los trata como activos; acá igual.
     for (const row of rows) {
       const estaActivo = row.activo !== false;
+      const enGraciaRow = estaEnGracia(row.created_at, now, GRACIA_DIAS);
+
       if (enSiesa && !estaActivo) {
         reactivarIds.push(row.id);
-      } else if (!enSiesa && estaActivo) {
+        continue;
+      }
+
+      if (!enSiesa && estaActivo) {
+        if (enGraciaRow) {
+          // Ingreso reciente: SIESA/RRHH aún no registró el contrato. No es
+          // un fantasma, es la ventana ciega documentada — no se desactiva.
+          enGracia += 1;
+          continue;
+        }
         desactivarIds.push(row.id);
+        continue;
+      }
+
+      if (!enSiesa && !estaActivo && enGraciaRow) {
+        // Self-healing: solo se deshace una desactivación que HICIMOS
+        // nosotros mismos en un sync anterior (misma marca). Una
+        // desactivación humana (marca distinta o ausente) nunca se toca.
+        const marca = row.observacion_desactivacion || "";
+        if (marca.startsWith(MARCA_DESACTIVACION_SYNC)) {
+          reactivarIds.push(row.id);
+        }
       }
     }
   }
@@ -102,7 +145,7 @@ export function computeReconciliation(siesaRows, dotacionRows) {
     });
   }
 
-  return { desactivarIds, reactivarIds, sinDotacion, duplicados, documentoInvalido };
+  return { desactivarIds, reactivarIds, sinDotacion, duplicados, documentoInvalido, enGracia };
 }
 
 function chunk(arr, size) {
@@ -132,7 +175,7 @@ function respuestaDesdeEstado(estado, origen) {
       ultimaSyncOk: null,
       error: null,
       siesa: { total: estado?.conteo_siesa ?? 0 },
-      resumen: estado?.resumen ?? { desactivados: 0, reactivados: 0, documentoInvalido: 0, desactivadosIds: [], reactivadosIds: [] },
+      resumen: estado?.resumen ?? { desactivados: 0, reactivados: 0, documentoInvalido: 0, desactivadosIds: [], reactivadosIds: [], enGracia: 0 },
       sinDotacion: estado?.sin_dotacion ?? [],
       duplicados: estado?.duplicados ?? [],
     };
@@ -144,7 +187,7 @@ function respuestaDesdeEstado(estado, origen) {
     ultimaSyncOk: estado.ultima_sync_ok,
     error: estado.error,
     siesa: { total: estado.conteo_siesa ?? 0 },
-    resumen: estado.resumen ?? { desactivados: 0, reactivados: 0, documentoInvalido: 0, desactivadosIds: [], reactivadosIds: [] },
+    resumen: estado.resumen ?? { desactivados: 0, reactivados: 0, documentoInvalido: 0, desactivadosIds: [], reactivadosIds: [], enGracia: 0 },
     sinDotacion: estado.sin_dotacion ?? [],
     duplicados: estado.duplicados ?? [],
   };
@@ -224,7 +267,9 @@ export async function runSync({ forzar = false, dryRun = false } = {}) {
     return respuestaDesdeEstado(rechazo, "connekta");
   }
 
-  const { data: dotacionRows, error: selError } = await supabase.from("dotaciones").select("id, documento, activo");
+  const { data: dotacionRows, error: selError } = await supabase
+    .from("dotaciones")
+    .select("id, documento, activo, created_at, observacion_desactivacion");
   if (selError) throw new Error(`No se pudo leer dotaciones: ${selError.message}`);
 
   const reconciliacion = computeReconciliation(siesaRows, dotacionRows || []);
@@ -234,7 +279,7 @@ export async function runSync({ forzar = false, dryRun = false } = {}) {
       if (grupo.length === 0) continue;
       const { error } = await supabase
         .from("dotaciones")
-        .update({ activo: false, observacion_desactivacion: `Desactivado por sincronización SIESA ${ahoraISO}` })
+        .update({ activo: false, observacion_desactivacion: `${MARCA_DESACTIVACION_SYNC} ${ahoraISO}` })
         .in("id", grupo);
       if (error) throw new Error(`No se pudo desactivar dotaciones: ${error.message}`);
     }
@@ -254,6 +299,7 @@ export async function runSync({ forzar = false, dryRun = false } = {}) {
     documentoInvalido: reconciliacion.documentoInvalido,
     desactivadosIds: reconciliacion.desactivarIds,
     reactivadosIds: reconciliacion.reactivarIds,
+    enGracia: reconciliacion.enGracia,
   };
 
   const nuevoEstado = {

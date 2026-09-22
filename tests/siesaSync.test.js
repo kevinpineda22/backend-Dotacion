@@ -214,3 +214,119 @@ test("sinDotacion rows carry the SIESA employee name (nombre_empleado)", () => {
   assert.equal(r.sinDotacion.length, 1);
   assert.equal(r.sinDotacion[0].nombre, "Empleado 555");
 });
+
+// ---- Grace period: brand-new dotaciones must not be auto-deactivated ----
+
+function isoDaysAgo(days, now) {
+  const ref = new Date(now);
+  ref.setUTCDate(ref.getUTCDate() - days);
+  return ref.toISOString();
+}
+
+test("grace period: row created 2 days ago, absent from SIESA -> NOT deactivated, counted in enGracia", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "999", true, { created_at: isoDaysAgo(2, now) }), // ghost, but brand new
+  ];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.desactivarIds, []);
+  assert.equal(result.enGracia, 1);
+});
+
+test("grace period regression guard: row created 60 days ago, absent from SIESA -> still deactivated", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [dotacionRow(1, "999", true, { created_at: isoDaysAgo(60, now) })];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.desactivarIds, [1]);
+  assert.equal(result.enGracia, 0);
+});
+
+test("self-healing: row in grace period, inactive due to OUR OWN sync, absent from SIESA -> reactivated", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "999", false, {
+      created_at: isoDaysAgo(5, now),
+      observacion_desactivacion: "Desactivado por sincronización SIESA 2026-09-21T08:00:00.000Z",
+    }),
+  ];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.reactivarIds, [1]);
+  assert.deepEqual(result.desactivarIds, []);
+});
+
+test("self-healing does NOT touch a row deactivated by a human", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "999", false, {
+      created_at: isoDaysAgo(5, now),
+      observacion_desactivacion: "Se retiró, entregó dotación",
+    }),
+  ];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.reactivarIds, []);
+  assert.deepEqual(result.desactivarIds, []);
+});
+
+test("self-healing does NOT apply once the row is outside the grace period", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "999", false, {
+      created_at: isoDaysAgo(90, now),
+      observacion_desactivacion: "Desactivado por sincronización SIESA 2026-06-20T08:00:00.000Z",
+    }),
+  ];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.reactivarIds, []);
+  assert.deepEqual(result.desactivarIds, []);
+});
+
+test("missing/invalid created_at is treated as OUTSIDE grace period (established record)", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  const dotacionRows = [
+    dotacionRow(1, "999", true, { created_at: null }),
+    dotacionRow(2, "888", true, { created_at: "not-a-date" }),
+  ];
+
+  const result = computeReconciliation(siesaRows, dotacionRows, now);
+
+  assert.deepEqual(result.desactivarIds.sort(), [1, 2]);
+  assert.equal(result.enGracia, 0);
+});
+
+test("grace period idempotency: applying the self-heal flip once yields zero flips on the next run", () => {
+  const now = new Date("2026-09-22T12:00:00.000Z");
+  const siesaRows = [siesaRow("111")];
+  let dotacionRows = [
+    dotacionRow(1, "999", false, {
+      created_at: isoDaysAgo(5, now),
+      observacion_desactivacion: "Desactivado por sincronización SIESA 2026-09-21T08:00:00.000Z",
+    }),
+  ];
+
+  const first = computeReconciliation(siesaRows, dotacionRows, now);
+  assert.deepEqual(first.reactivarIds, [1]);
+
+  dotacionRows = dotacionRows.map((row) =>
+    first.reactivarIds.includes(row.id) ? { ...row, activo: true } : row,
+  );
+
+  const second = computeReconciliation(siesaRows, dotacionRows, now);
+  assert.deepEqual(second.reactivarIds, []);
+  assert.deepEqual(second.desactivarIds, []);
+});
